@@ -16,6 +16,11 @@
 #       You should have received a copy of the GNU General Public License along with this program.
 #       If not, see http://www.gnu.org/licenses/.
 #
+#       [Clem 11082020] The 't' command show the time execution. Added print out of elapsed time and
+#                       upper/lower limit counter on exit.
+#
+#       [Clem 10082020] The 'd' command show the total of lower and upper treshold counted.
+#
 #       [Clem 29012013] new parameters can set the lower and upper value treshold of ping responce
 #                       default is 100ms to 200ms. In case of incorrect parameters the program assume
 #                       upper limit twise the lower.
@@ -44,7 +49,12 @@ function int_handler {
         loss=$(echo "scale=2; $notok*100/$i" | bc -q 2>/dev/null)
         echo "$Bold % $success success... % $loss packet loss... $BoldOff"
         echo "$Bold $i packets transmitted, $ok packet received $BoldOff"
-        echo "$start - $end "
+        echo "$Bold Upper lmt: $CntExceedUpper Lower lmt: $CntExceedLower $BoldOff"
+        echo "$Bold From: $start to $end $BoldOff"
+        endTime=$(date '+%s')
+        ((secs = endTime - startTime))
+        timeRunning=$(printf '%dd:%dh:%dm:%ds\n' $(($secs/86400)) $(($secs%86400/3600)) $(($secs%3600/60)) $(($secs%60)))
+        echo "$Bold Time elapsed : $timeRunning $BoldOff"
         reset
         exit
 }
@@ -97,11 +107,14 @@ ClrScrn=$(tput clear)
 GotoHome=$(tput cup 0 0)
 ok=0
 notok=0
+CntExceedLower=0
+CntExceedUpper=0
 ((ColSize=ColSize-22))
 ((LineSize=LineSize/2))
 DateOrStat=0
 
 start=$(date '+%Y-%m-%d %T' )
+startTime=$(date '+%s' )
 echo "Sending $Cnt Ping Packets to $Dest [Lower lmt:$Lvl1 ms, Upper lmt:$Lvl2 ms]"
 i=1
 r=1
@@ -133,8 +146,10 @@ do
                         tresp=$(echo "$trespt" | cut -d'.' -f1)
                         if [ $tresp -ge $Lvl2 ]; then
                                 echo -n "$TmExceedPurple.$BoldOff"
+                                ((CntExceedUpper+=1))
                         elif [ $tresp -ge $Lvl1 ]; then
                                 echo -n "$TmExceedBlue.$BoldOff"
+                                ((CntExceedLower+=1))
                         else
                                 echo -n .
                         fi
@@ -169,7 +184,20 @@ do
                         # Print a snapshot about stats
                         loss=$(echo "scale=2; $notok*100/$i" | bc -q 2>/dev/null)
                         echo -n "$SaveCur"
-                        echo -n "$Bold Rcvd: $ok, Loss: $notok % $loss $BoldOff"
+                        echo -n "$Bold Rcvd: $ok, Loss: $notok % $loss Ulmt: $CntExceedUpper Llmt: $CntExceedLower $BoldOff"
+                        sleep 1
+                        echo -n "$RestCur"
+                        echo -n "$SaveCur"
+                        echo -n "$ClrEndLn"
+                        echo -n "$RestCur"
+                        ;;
+                        t)
+                        # Print the starting date
+                        endTime=$(date '+%s')
+                        ((secs = endTime - startTime))
+                        timeRunning=$(printf '%dd:%dh:%dm:%ds\n' $(($secs/86400)) $(($secs%86400/3600)) $(($secs%3600/60)) $(($secs%60)))
+                        echo -n "$Bold Time elapsed: $timeRunning $BoldOff"
+
                         sleep 1
                         echo -n "$RestCur"
                         echo -n "$SaveCur"
@@ -203,5 +231,10 @@ success=$(echo "scale=2; $ok*100/$Cnt" | bc -q 2>/dev/null)
 loss=$(echo "scale=2; $notok*100/$Cnt" | bc -q 2>/dev/null)
 echo "$Bold % $success success... % $loss packet loss... $BoldOff"
 echo "$Bold $Cnt packets transmitted, $ok packet received $BoldOff"
-echo "$start - $end "
+echo "$Bold Upper lmt: $CntExceedUpper Lower lmt: $CntExceedLower $BoldOff"
+echo "$Bold From: $start to $end $BoldOff"
+endTime=$(date '+%s')
+((secs = endTime - startTime))
+timeRunning=$(printf '%dd:%dh:%dm:%ds\n' $(($secs/86400)) $(($secs%86400/3600)) $(($secs%3600/60)) $(($secs%60)))
+echo "$Bold Time elapsed: $timeRunning $BoldOff"
 exit
